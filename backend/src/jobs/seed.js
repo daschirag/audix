@@ -1,4 +1,3 @@
-require('dotenv').config();
 const User = require('../models/User');
 const Question = require('../models/Question');
 const connectDB = require('../config/db');
@@ -409,18 +408,18 @@ function buildOptions(textArray, correctIndex) {
   }));
 }
 
-// ── SEED ───────────────────────────────────────────────────────────
+// ── CORE SEED LOGIC (exported for HTTP endpoint) ──────────────────
 
-const seed = async () => {
-  await connectDB();
-
-  // ── 1. Admin ──────────────────────────────────────────────────────
+const runSeed = async () => {
+  // ── 1. Admin ────────────────────────────────────────────────────
+  let adminCreated = false;
   let admin = await User.findOne({ email: ADMIN.email });
 
   if (admin) {
     console.log('⏭  Admin already exists:', admin.email);
   } else {
     admin = await User.create(ADMIN);
+    adminCreated = true;
     console.log('✅ Admin created:', admin.email);
   }
 
@@ -456,11 +455,21 @@ const seed = async () => {
   }
 
   console.log(`✅ Questions: ${created} created, ${skipped} already existed.`);
-  console.log('🎉 Seed complete.');
-  process.exit(0);
+  return { adminCreated, questionsCreated: created, questionsSkipped: skipped };
 };
 
-seed().catch((err) => {
-  console.error('❌ Seed failed:', err.message);
-  process.exit(1);
-});
+module.exports = { runSeed, ADMIN };
+
+// ── CLI ENTRY POINT ────────────────────────────────────────────────
+if (require.main === module) {
+  require('dotenv').config();
+  (async () => {
+    await connectDB();
+    await runSeed();
+    console.log('🎉 Seed complete.');
+    process.exit(0);
+  })().catch((err) => {
+    console.error('❌ Seed failed:', err.message);
+    process.exit(1);
+  });
+}
